@@ -45,7 +45,7 @@ const mekanBilgisi = function(req, res, next) {
                     "kapali": false
                 }
             ],
-            "imkanlar": ["Tavuk Döner", "Pide", "Lahmacun"],
+            "imkanlar": ["Adana Dürüm", "Tavuk Şiş", "Salata"],
             "koordinatlar": {
                 "enlem": "37.7",
                 "boylam": "30.5"
