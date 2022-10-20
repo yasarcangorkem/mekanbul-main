@@ -17,7 +17,7 @@ const anaSayfa = function(req, res, next) {
             {
                 "ad": "Şehzade Döner",
                 "adres": "Fatih Mahallesi",
-                "puan": "4",
+                "puan": "3",
                 "mesafe": "3km",
                 "imkanlar": ["Tavuk Döner", "Pide", "Lahmacun"]
             }
