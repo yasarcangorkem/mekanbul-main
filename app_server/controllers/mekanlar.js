@@ -11,7 +11,7 @@ const anaSayfa = function(req, res, next) {
                 "ad": "Dürümhane",
                 "adres": "Modernevler",
                 "puan": "5",
-                "mesafe": "1km",
+                "mesafe": "2km",
                 "imkanlar": ["Adana Dürüm", "Tavuk Şiş", "Salata"]
             },
             {
