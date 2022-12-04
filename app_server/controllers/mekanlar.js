@@ -1,76 +1,101 @@
 var express = require('express');
 var router = express.Router();
-const anaSayfa = function(req, res, next) {
-    res.render('anasayfa', {
-        "baslik": 'Anasayfa',
-        "sayfaBaslik": {
-            "siteAd": "MekanBul",
-            "slogan": "Civardaki Mekanları Keşfet!"
-        },
-        "mekanlar": [{
-                "ad": "Dürümhane",
-                "adres": "Modernevler",
-                "puan": "5",
-                "mesafe": "2km",
-                "imkanlar": ["Adana Dürüm", "Tavuk Şiş", "Salata"]
-            },
-            {
-                "ad": "Şehzade Döner",
-                "adres": "Fatih Mahallesi",
-                "puan": "4",
-                "mesafe": "3km",
-                "imkanlar": ["Tavuk Döner", "Pide", "Lahmacun"]
-            }
-        ]
-    });
-}
-const mekanBilgisi = function(req, res, next) {
-    res.render('mekanbilgisi', {
-        "baslik": "Mekan Bilgisi",
-        "mekanBaslik": "Dürümhane",
-        "mekanDetay": {
-            "ad": "Dürümhane",
-            "adres": "Modernevler",
-            "puan": "5",
-            "saatler": [{
-                    "gunler": "Pazartesi-Cuma",
-                    "acilis": "09:00",
-                    "kapanis": "23.00",
-                    "kapali": false
-                },
-                {
-                    "gunler": "Cumartesi-Pazar",
-                    "acilis": "10:00",
-                    "kapanis": "22.00",
-                    "kapali": false
-                }
-            ],
-            "imkanlar": ["Adana Dürüm", "Tavuk Şiş", "Salata"],
-            "koordinatlar": {
-                "enlem": "37.7",
-                "boylam": "30.5"
-            },
-            "yorumlar": [{
-                    "yorumYapan": "Yaşarcan",
-                    "puan": "5",
-                    "tarih": "20 Ekim 2022",
-                    "yorumMetni": "BU ADAM AYNI BEN YA, ŞEF BAYA İYİ"
-                },
-                {
-                    "yorumYapan": "Emil",
-                    "puan": "2",
-                    "tarih": "31 Ağustos 2022",
-                    "yorumMetni": "Azarbayjanda daha güzelini yedim"
-                }
-            ]
+const axios = require('axios');
+var apiSecenekleri = {
+    // sunucu: "http://localhost:3000",
+    sunucu: "https://mekanbul-main.yasarcangorkem.repl.co",
+    apiYolu: '/api/mekanlar'
+};
+var mesafeyiFormatla = function(mesafe) {
+    var yeniMesafe, birim;
+    if (mesafe > 1) {
+        yeniMesafe = parseFloat(mesafe).toFixed(1);
+        birim = 'km';
+    } else {
+        yeniMesafe = parseInt(mesafe * 100, 10);
+        birim = 'm';
+    }
+    return yeniMesafe + birim;
+};
+var anaSayfaOlustur = function(res, mekanListesi) {
+    var mesaj;
+    if (!(mekanListesi instanceof Array)) {
+        mesaj = "API HATASI: Birşeyler ters gitti";
+        mekanListesi = [];
+    } else {
+        if (!mekanListesi.length) {
+            mesaj = "Civarda herhangi bir mekan bulunamadı!";
         }
+    }
+    res.render('anasayfa', {
+        baslik: 'Anasayfa',
+        sayfaBaslik: {
+            siteAd: 'MekanBul',
+            slogan: 'Civardaki mekanları keşfedin!'
+        },
+        mekanlar: mekanListesi,
+        mesaj: mesaj
     });
-}
+};
+const anaSayfa = function(req, res, next) {
+    axios.get(apiSecenekleri.sunucu + apiSecenekleri.apiYolu, {
+        params: {
+            enlem: req.query.enlem ? req.query.enlem : 37,
+            boylam: req.query.boylam ? req.query.boylam : 35,
+        },
+    }).then(function(response) {
+        var i, mekanlar;
+        mekanlar = response.data;
+        for (i = 0; i < mekanlar.length; i++) {
+            mekanlar[i].mesafe = mesafeyiFormatla(mekanlar[i].mesafe);
+        }
+        anaSayfaOlustur(res, mekanlar);
+    }).catch(function(hata) {
+        anaSayfaOlustur(res, hata);
+    });
+};
+var detaySayfasiOlustur = function(res, mekanDetaylari) {
+    mekanDetaylari.koordinat = {
+        enlem: mekanDetaylari.koordinat[0],
+        boylam: mekanDetaylari.koordinat[1]
+    };
+    res.render('mekanbilgisi', {
+        mekanBaslik: mekanDetaylari.ad,
+        mekanDetay: mekanDetaylari
+    });
+};
+
+var hataGoster = function(res, hata) {
+    var mesaj;
+    if (hata.response.status === 404) {
+        mesaj = "Aradığınız mekan bulunamadı";
+    } else {
+        mesaj = hata.response.status + "hatası";
+    }
+    res.status(hata.response.status);
+    res.render('error', { mesaj: mesaj });
+};
+
+const mekanBilgisi = function(req, res) {
+    axios
+        .get(apiSecenekleri.sunucu + apiSecenekleri.apiYolu + '/' + req.params.mekanid)
+        .then(function(response) {
+            detaySayfasiOlustur(res, response.data);
+        })
+        .catch(function(hata) {
+            hataGoster(res, hata);
+        });
+};
+
 const yorumEkle = function(req, res, next) {
     res.render('yorumekle', { title: 'Yorum ekle' });
 }
 module.exports = {
     anaSayfa,
     mekanBilgisi,
-    yorumEkle
+    yorumEkle,
+    anaSayfaOlustur,
+    mesafeyiFormatla,
+    detaySayfasiOlustur,
+    hataGoster
 }
