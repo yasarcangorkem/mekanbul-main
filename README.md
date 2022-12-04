@@ -1,7 +1,7 @@
 #mekanbul
 # MekanBul REST API Adresleri #
 
-[Replit Adresi](https://mekanbul-main.yasarcangorkem.repl.co/?enlem=37.8&boylam=30.5)
+[Replit Adresi](https://mekanbul.yasarcangorkem.repl.co/?enlem=37.8&boylam=30.5)
 **Thunder Client Koleksiyon testi** <br>
 ![koleksiyon test resmi](https://github.com/yasarcangorkem/mekanbul-main/blob/odev6/resimler/Collection%20test.jpg) <br>
 
