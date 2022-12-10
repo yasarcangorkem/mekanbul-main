@@ -1,85 +1,94 @@
-var express = require('express');
-var router = express.Router();
-const axios = require('axios');
+const axios = require("axios");
 var apiSecenekleri = {
     // sunucu: "http://localhost:3000",
     sunucu: "https://mekanbul.yasarcangorkem.repl.co",
-    apiYolu: '/api/mekanlar'
+    apiYolu: "/api/mekanlar/",
 };
 var mesafeyiFormatla = function(mesafe) {
     var yeniMesafe, birim;
     if (mesafe > 1) {
         yeniMesafe = parseFloat(mesafe).toFixed(1);
-        birim = 'km';
+        birim = "km";
     } else {
-        yeniMesafe = parseInt(mesafe * 100, 10);
-        birim = 'm';
+        yeniMesafe = parseInt(mesafe * 1000, 10);
+        birim = "m";
     }
     return yeniMesafe + birim;
 };
+var express = require("express");
+const { default: mongoose } = require("mongoose");
+var router = express.Router();
 var anaSayfaOlustur = function(res, mekanListesi) {
     var mesaj;
-    if (!(mekanListesi instanceof Array)) {
-        mesaj = "API HATASI: Birşeyler ters gitti";
+    //gelen mekanListesi eğer dizi tipinde değilse hata ver
+    console.log(mekanListesi);
+    if (!Array.isArray(mekanListesi)) {
+        mesaj = "API HATASI: Bir şeyler ters gitti.";
         mekanListesi = [];
     } else {
+        //Eğer belirlenen mesafe içind mekan bulunamadıysa bilgilendir
         if (!mekanListesi.length) {
-            mesaj = "Civarda herhangi bir mekan bulunamadı!";
+            mesaj = "Civarda herhangi bir mekan bulunamadı.";
         }
     }
-    res.render('anasayfa', {
-        baslik: 'Anasayfa',
+    res.render("anasayfa", {
+        baslik: "Anasayfa",
         sayfaBaslik: {
-            siteAd: 'MekanBul',
-            slogan: 'Civardaki mekanları keşfedin!'
+            siteAd: "MekanBul",
+            slogan: "Civardaki Mekanları Keşfet!",
         },
         mekanlar: mekanListesi,
-        mesaj: mesaj
+        mesaj: mesaj,
     });
 };
 const anaSayfa = function(req, res, next) {
-    axios.get(apiSecenekleri.sunucu + apiSecenekleri.apiYolu, {
-        params: {
-            enlem: req.query.enlem ? req.query.enlem : 37,
-            boylam: req.query.boylam ? req.query.boylam : 35,
-        },
-    }).then(function(response) {
-        var i, mekanlar;
-        mekanlar = response.data;
-        for (i = 0; i < mekanlar.length; i++) {
-            mekanlar[i].mesafe = mesafeyiFormatla(mekanlar[i].mesafe);
-        }
-        anaSayfaOlustur(res, mekanlar);
-    }).catch(function(hata) {
-        anaSayfaOlustur(res, hata);
-    });
+    axios
+        .get(apiSecenekleri.sunucu + apiSecenekleri.apiYolu, {
+            params: {
+                enlem: req.query.enlem ? req.query.enlem : 37,
+                boylam: req.query.boylam ? req.query.boylam : 30.5,
+            },
+        })
+        .then(function(response) {
+            var i, mekanlar;
+            mekanlar = response.data;
+            for (i = 0; i < mekanlar.length; i++) {
+                mekanlar[i].mesafe = mesafeyiFormatla(mekanlar[i].mesafe);
+            }
+            anaSayfaOlustur(res, mekanlar);
+        })
+        .catch(function(hata) {
+            anaSayfaOlustur(res, hata);
+        });
 };
+
 var detaySayfasiOlustur = function(res, mekanDetaylari) {
     mekanDetaylari.koordinat = {
         enlem: mekanDetaylari.koordinat[0],
-        boylam: mekanDetaylari.koordinat[1]
+        boylam: mekanDetaylari.koordinat[1],
     };
-    res.render('mekanbilgisi', {
+    res.render("mekanbilgisi", {
         mekanBaslik: mekanDetaylari.ad,
-        mekanDetay: mekanDetaylari
+        mekanDetay: mekanDetaylari,
     });
 };
-
 var hataGoster = function(res, hata) {
     var mesaj;
-    if (hata.response.status === 404) {
-        mesaj = "Aradığınız mekan bulunamadı";
+    if (hata.response.status == 404) {
+        mesaj = "404, Sayfa Bulunamadı!";
     } else {
-        mesaj = hata.response.status + "hatası";
+        mesaj = hata.response.status + " hatası";
     }
     res.status(hata.response.status);
-    res.render('error', { mesaj: mesaj });
+    res.render("error", {
+        mesaj: mesaj,
+    });
 };
-
 const mekanBilgisi = function(req, res) {
     axios
-        .get(apiSecenekleri.sunucu + apiSecenekleri.apiYolu + '/' + req.params.mekanid)
+        .get(apiSecenekleri.sunucu + apiSecenekleri.apiYolu + req.params.mekanid)
         .then(function(response) {
+            req.session.mekanAdi = response.data.ad;
             detaySayfasiOlustur(res, response.data);
         })
         .catch(function(hata) {
@@ -87,15 +96,53 @@ const mekanBilgisi = function(req, res) {
         });
 };
 
-const yorumEkle = function(req, res, next) {
-    res.render('yorumekle', { title: 'Yorum ekle' });
-}
+const yorumEkle = function(req, res) {
+    var mekanAdi = req.session.mekanAdi;
+    mekanid = req.params.mekanid;
+    if (!mekanAdi) {
+        res.redirect("/mekan/" + mekanid);
+    } else {
+        res.render("yorumekle", {
+            baslik: mekanAdi + " mekanına yorum ekle",
+        });
+    }
+};
+
+const yorumumuEkle = function(req, res) {
+    var gonderilenYorum, mekanid;
+    mekanid = req.params.mekanid;
+    if (!req.body.adsoyad || !req.body.yorum) {
+        res.redirect("/mekan/" + mekanid + "/yorum/yeni?hata=evet");
+    } else {
+        gonderilenYorum = {
+            yorumYapan: req.body.adsoyad,
+            puan: parseInt(req.body.puan, 10),
+            yorumMetni: req.body.yorum,
+        };
+        axios
+            .post(
+                apiSecenekleri.sunucu + apiSecenekleri.apiYolu + mekanid + "/yorumlar",
+                gonderilenYorum
+            )
+            .then(function() {
+                res.redirect("/mekan/" + mekanid);
+            })
+            .catch(function(hata) {
+                hataGoster(res, hata);
+            });
+    }
+};
+
+var yorumSema = new mongoose.Schema({
+    yorumYapan: { type: String, required: true },
+    puan: { type: Number, default: 0, min: 0, max: 5 },
+    yorumMetni: { type: String, required: true },
+    tarih: { type: Date, default: Date.now },
+});
+
 module.exports = {
     anaSayfa,
     mekanBilgisi,
     yorumEkle,
-    anaSayfaOlustur,
-    mesafeyiFormatla,
-    detaySayfasiOlustur,
-    hataGoster
-}
+    yorumumuEkle,
+};
